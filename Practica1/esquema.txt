@@ -1,0 +1,2 @@
+depts # NAME # STR # OFFICE # INT
+students # DEPT # STR # ID # INT # NAME # STR
