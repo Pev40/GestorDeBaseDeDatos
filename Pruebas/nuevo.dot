@@ -1,0 +1,8 @@
+digraph BPlusTree {
+    node [shape=record];
+    root [label="<0>10"];
+    root:<0> -> child0;
+    root:<1> -> child1;
+    child0 [label="<0>4"];
+    child1 [label="<0>16|<1>20|<2>30"];
+}

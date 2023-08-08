@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <experimental/filesystem>
 #include <stdio.h>
+#include <map>
 #include <iomanip> // Para std::setw()
 #include "DiscoDuro.h"
 namespace fs = std::filesystem;
@@ -23,7 +24,6 @@ void convertir_csv(const std::string &archivo_csv, const std::string &archivo_sa
             std::stringstream ss(linea);
             std::string campo;
             bool primer_campo = true;
-            archivo_salida_stream << "$";
             while (std::getline(ss, campo, ','))
             {
 
@@ -36,9 +36,8 @@ void convertir_csv(const std::string &archivo_csv, const std::string &archivo_sa
                     primer_campo = false;
                 }
 
-                archivo_salida_stream << campo << "#";
+                archivo_salida_stream << campo ;
             }
-            archivo_salida_stream << "$";
             archivo_salida_stream << std::endl;
         }
 
@@ -57,7 +56,7 @@ bool convertir_csv2(const std::string &archivo_csv, const std::string &archivo_s
     std::ifstream archivo_entrada(archivo_csv);
     std::ofstream archivo_salida_stream(archivo_salida, std::ios::binary);
     std::ofstream esquema_stream("esquema.txt");
-
+    
     if (archivo_entrada && archivo_salida_stream && esquema_stream)
     {
         std::string linea;
@@ -68,7 +67,6 @@ bool convertir_csv2(const std::string &archivo_csv, const std::string &archivo_s
         std::string tipo_dato;
         int tamanos[MAX_ENCABEZADOS] = {0}; // Arreglo para almacenar los tamaños de los encabezados
         int num_encabezados = 0;
-//        archivo_salida_stream << "$";
 
         while (std::getline(encabezados_ss, encabezado, ';'))
         {
@@ -91,21 +89,17 @@ bool convertir_csv2(const std::string &archivo_csv, const std::string &archivo_s
                 tamanos[num_encabezados] = (tipo_dato == "int" || tipo_dato == "float") ? sizeof(float) : 0;
             }
 
-            //archivo_salida_stream << encabezado;
-            //archivo_salida_stream << "#";
             esquema_stream << encabezado << "#" << tipo_dato << "#" << tamanos[num_encabezados] << std::endl;
             num_encabezados++;
         }
 
-        //archivo_salida_stream << "$";
         archivo_salida_stream << std::endl;
-
+        
         while (std::getline(archivo_entrada, linea))
         {
             std::stringstream ss(linea);
             std::string campo;
             bool primer_campo = true;
-            archivo_salida_stream << "$";
             int indice = 0;
 
             while (std::getline(ss, campo, ';'))
@@ -135,11 +129,8 @@ bool convertir_csv2(const std::string &archivo_csv, const std::string &archivo_s
                 }
 
                 archivo_salida_stream.write(campo_rellenado.c_str(), tamanos[indice]);
-                archivo_salida_stream << "#";
                 indice++;
             }
-
-            archivo_salida_stream << "$";
             archivo_salida_stream << std::endl;
         }
 
