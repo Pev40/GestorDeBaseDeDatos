@@ -1,30 +1,26 @@
-#ifndef BUFFERPOOL_H
-#define BUFFERPOOL_H
+#ifndef __BUFFERPOOL_H__
+#define __BUFFERPOOL_H__
 
-#include "Pagina.h"
-#include "Pagina.cpp"
+#include <vector>
+#include "Frame.h"
 
-#include <iostream>
-#include <map>
-
-using namespace std;
-
-class BufferPool
-{
+class BufferPool {
 private:
-    int num_frames;
-    map<int,Pagina> MapFramesBufPool;
+    std::vector<Frame> pool;
+    int poolSize;
+    int clockHand;
+
 public:
-    BufferPool(int num_frames);
-    BufferPool();
-    ~BufferPool();
+    BufferPool(int size);
 
-    //Otras funciones:
-    Pagina& get_pagina(int id_pag);
-    void agregar_pagina(Pagina &pagina,int id_pag);
-    void eliminar_pagina(int id_pag);
-    void replace_pagina(Pagina &pagina,int id_pag);
-    void mostrarBufferPool();
+    void cargarPagina(int pageId, std::string filename);
+    void liberarPagina(int pageId);
+    std::string leerPagina(int pageId);
+    void escribirPagina(int pageId, std::string contenido);
+    bool isPageInPool(int pageId);
+
+private:
+    Frame getFreeFrame();
+    Frame getFrame(int pageId);
 };
-
 #endif

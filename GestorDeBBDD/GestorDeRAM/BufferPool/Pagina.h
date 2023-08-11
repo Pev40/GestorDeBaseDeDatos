@@ -1,37 +1,31 @@
-#ifndef PAGINA_H
-#define PAGINA_H
+#ifndef __PAGINA_H__
+#define __PAGINA_H__
 
-#include <iostream>
-#include <map>
-#include <vector>
-#include <string>
-#include <string.h>
+#include <fstream>
 
-
-using namespace std;
-
-class Pagina
-{
-protected:
-    map <int,vector<string>> mapPagina;
-    int id_pagina;
+class Page {
 public:
-    Pagina();
-    ~Pagina();
+  int page_id;
+  std::string content;
 
-    //otras funciones
-    bool vacioPtrMapRegistros();
-    int get_id_pagina();
-    void print_info_pagina();
-    void insert_aux_dataPagina(){
-        (this->mapPagina)[1].push_back("nelzon, Elemento 1");
-        (this->mapPagina)[2].push_back("jorge, Elemento 2");
-        (this->mapPagina)[3].push_back("apaza, Elemento 3");
-        this->id_pagina=1;
-    }
+  bool dirty_bit;
+  int pin_count;
+  bool ref_bit;
 
-    friend class BufferPool;
-    friend class TablaMetadata;
+  Page(int id) : page_id(id) {
+    dirty_bit = false;
+    pin_count = 0;
+    ref_bit = false;
+  }
+
+  void load(std::string filename) {
+    // Abrir archivo 
+    std::ifstream file(filename); 
+    // Leer contenido
+    std::string txt((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    content = txt;
+  }
 };
 
 #endif

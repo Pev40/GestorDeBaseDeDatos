@@ -1,73 +1,128 @@
 #include "BufferPool.h"
-
-BufferPool::BufferPool(int _num_frames){
-    this->num_frames=_num_frames;
+#include "Pagina.h"
+#include "Frame.h"
+BufferPool::BufferPool(int size) : poolSize(size), clockHand(0)
+{
+    pool.resize(size);
 }
-BufferPool::BufferPool(){
-    this->num_frames=0;
+
+void BufferPool::cargarPagina(int pageId, std::string filename)
+{
+    if (isPageInPool(pageId))
+    {
+        return;
+    }
+
+    Frame frame = getFreeFrame();
+    Page *page = new Page(pageId);
+    page->load(filename);
+
+    frame.page = page;
+    frame.page->pin_count++;
+    frame.ref_bit = true;
 }
 
-BufferPool::~BufferPool(){}
+// Valida que la página esté en el pool
+void BufferPool::liberarPagina(int pageId)
+{
 
-Pagina& BufferPool::get_pagina(int id_pag){
-    Pagina *ptr_pagina;
-    if ((this->MapFramesBufPool).find(id_pag) != ((this->MapFramesBufPool).end())) 
+    if (!isPageInPool(pageId))
     {
-        (*ptr_pagina)=(this->MapFramesBufPool)[id_pag];
-        cout<<"El segundo valor para "<<id_pag<<" es: "<<endl;
-        (*ptr_pagina).print_info_pagina();
-    } 
-    else 
+        throw std::runtime_error("Page not loaded in buffer pool");
+    }
+
+    Frame frame = getFrame(pageId);
+    frame.page->pin_count--;
+
+    if (frame.page->pin_count == 0)
     {
-        cout<<"La clave o pagina"<<id_pag<<" no se encontro en el mapa."<<endl;
+        frame.ref_bit = false;
     }
 }
 
-void BufferPool::agregar_pagina(Pagina &pagina,int id_pag){
-    pagina.print_info_pagina();
-    cout<<id_pag<<endl;
-    cout<<"buyaa"<<endl;
-    map<int,Pagina> mapAux;
-    mapAux.insert(make_pair(id_pag,pagina));
-    
-    for (auto elemento : mapAux) {
-        int clave = elemento.first;
-        Pagina pagina = elemento.second;
-        std::cout << "Clave: " << clave << ", ";
-        pagina.print_info_pagina();
-        std::cout << std::endl;
-    }
-    
-    this->MapFramesBufPool[id_pag]=pagina;
-
-    cout<<"Pagina agregada en el Buffer Pool..."<<id_pag<<endl;
+std::string BufferPool::leerPagina(int pageId)
+{
+    Frame frame = getFrame(pageId);
+    frame.ref_bit = true;
+    return frame.page->content;
 }
 
-void BufferPool::eliminar_pagina(int id_pag){
-    auto iter = (this->MapFramesBufPool).find(id_pag);
-    if (iter != ((this->MapFramesBufPool).end())) 
+void BufferPool::escribirPagina(int pageId, std::string contenido)
+{
+    Frame frame = getFrame(pageId);
+    frame.page->content = contenido;
+    frame.page->dirty_bit = true;
+    frame.ref_bit = true;
+}
+
+bool BufferPool::isPageInPool(int pageId)
+{
+    for (Frame frame : pool)
     {
-        (this->MapFramesBufPool).erase(iter);
-        cout<<"Se elimino la pagina con clave "<<id_pag<<endl;
-    } 
-    else
+        if (frame.page && frame.page->page_id == pageId)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+BufferPool::Frame BufferPool::getFreeFrame()
+{
+    for (Frame &frame : pool)
     {
-        cout<<"La pagina con clave "<<id_pag<<" no se encontro en el mapa."<<endl;
+        if (frame.page == nullptr)
+        {
+            return frame;
+        }
+    }
+    clockAlgorithm();
+    return getFreeFrame();
+}
+
+// Lanza excepción si no encuentra la página
+BufferPool::Frame BufferPool::getFrame(int pageId)
+{
+
+    for (Frame &frame : pool)
+    {
+        if (frame.page && frame.page->page_id == pageId)
+        {
+            return frame;
+        }
+    }
+
+    throw std::runtime_error("Page not found in buffer pool");
+}
+Frame BufferPool::getFreeFrame()
+{
+    while (true)
+    {
+        if (!pool[clockHand].page || !pool[clockHand].reference_bit)
+        {
+            return pool[clockHand];
+        }
+        else
+        {
+            pool[clockHand].reference_bit = false;
+            clockHand = (clockHand + 1) % poolSize;
+        }
     }
 }
 
-void BufferPool::replace_pagina(Pagina &pagina,int id_pag){
-    eliminar_pagina(id_pag);
-    agregar_pagina(pagina,id_pag);
-    cout<<"Pagina "<<id_pag<<" reemplazada"<<endl;
-}
-
-void BufferPool::mostrarBufferPool(){
-    for (auto elemento : (this->MapFramesBufPool)) {
-        int clave = elemento.first;
-        Pagina pagina = elemento.second;
-        std::cout << "Clave: " << clave << ", ";
-        pagina.print_info_pagina();
-        std::cout << std::endl;
+Frame BufferPool::getFrame(int pageId)
+{
+    while (true)
+    {
+        if (pool[clockHand].page && pool[clockHand].page->page_id == pageId)
+        {
+            return pool[clockHand];
+        }
+        else
+        {
+            pool[clockHand].reference_bit = false;
+            clockHand = (clockHand + 1) % poolSize;
+        }
     }
 }

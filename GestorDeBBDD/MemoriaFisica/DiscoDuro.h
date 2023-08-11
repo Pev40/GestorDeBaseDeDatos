@@ -6,6 +6,7 @@
 #include <sstream>
 #include <filesystem>
 #include <map>
+#include <regex>
 namespace fs = std::filesystem;
 class DiscoDuro
 {
@@ -14,7 +15,7 @@ private:
     int pistasPorSuperficie;
     int sectoresPorPista;
     int bytesPorSector;
-    int sectoresPorBloque;
+    int sectoresPorBloque = 5;
     int cantidadBloques;
 
 public:
@@ -29,7 +30,7 @@ public:
     bool leerSector(const std::string &, std::string &);
     void leerSectoresDinamico();
     void configurarBloques();
-    //void leerBloque();
+    // void leerBloque();
     void leerSector();
     void capacidadDisco();
     void setnumPlatos(int);
@@ -40,7 +41,7 @@ public:
     int getsectoresPorPista();
     int getbytesPorSector();
     int buscarId(const std::string &id);
-    
+    void guardarDiccionarioEnArchivo(const std::string &archivo, const std::map<int, std::string> &diccionario, std::vector<std::string> bloques) ;
     ~DiscoDuro();
 };
 
@@ -52,8 +53,9 @@ DiscoDuro::DiscoDuro(int platos, int pistas, int sectores, int bytes)
       sectoresPorPista(sectores),
       bytesPorSector(bytes) {}
 
-void DiscoDuro::capacidadDisco(){
-    std::cout<<"Capacidad total: "<<this->bytesPorSector*this->sectoresPorPista*2*this->pistasPorSuperficie*this->numPlatos<< "bytes"<<std::endl;
+void DiscoDuro::capacidadDisco()
+{
+    std::cout << "Capacidad total: " << this->bytesPorSector * this->sectoresPorPista * 2 * this->pistasPorSuperficie * this->numPlatos << "bytes" << std::endl;
 }
 
 void DiscoDuro::setnumPlatos(int platos)
@@ -113,12 +115,9 @@ void DiscoDuro::crearEstructuraDisco()
     std::cout << "La estructura del disco ha sido creada exitosamente." << std::endl;
 }
 
-void DiscoDuro::guardarTextoEnSectores(const std::string &archivoTxt)
-{
-
+void DiscoDuro::guardarTextoEnSectores(const std::string &archivoTxt) {
     std::ifstream archivo(archivoTxt);
-    if (!archivo.is_open())
-    {
+    if (!archivo.is_open()) {
         std::cout << "Error al abrir el archivo " << archivoTxt << std::endl;
         return;
     }
@@ -127,73 +126,70 @@ void DiscoDuro::guardarTextoEnSectores(const std::string &archivoTxt)
     const int maxTamanoSector = bytesPorSector;
     std::string sectores[maxSectores];
     int numSectores = 0;
-    std::map<int,std::string> diccionarioDePunteros;
+    std::map<int, std::string> diccionarioDePunteros;
     std::string linea;
     std::string contenido;
-    while (std::getline(archivo, linea))
-    {
-        linea += "\n";
-        contenido += linea;
+    std::vector<std::string> ids; 
+    while (std::getline(archivo, linea)) {
+        if (contenido.length() + linea.length() <= maxTamanoSector) {
+            contenido += linea;
+            contenido += "#" ;
 
-        if (contenido.length() >= maxTamanoSector)
-        {
-            sectores[numSectores] = contenido.substr(0, maxTamanoSector);
-            contenido = contenido.substr(maxTamanoSector);
+        } else {
+            sectores[numSectores] = contenido;
+            contenido = linea;
+            ids.push_back( sectores[numSectores]);
             numSectores++;
-
-            if (contenido.empty())
-            {
-                break; // No se pueden guardar más sectores
-            }
         }
     }
 
-    if (!contenido.empty() && numSectores < maxSectores)
-    {
+    if (!contenido.empty()) {
         sectores[numSectores] = contenido;
+        ids.push_back( sectores[numSectores]);
         numSectores++;
     }
 
     archivo.close();
-    
+
     int numSectoresNecesarios = numSectores;
-    
+
     int numSectoresDisponibles = numPlatos * 2 * pistasPorSuperficie * sectoresPorPista;
-    std::cout<<"Necesarios: "<<numSectoresNecesarios<<" Disponibles: "<<numSectoresDisponibles<<std::endl;
-    if (numSectoresNecesarios > numSectoresDisponibles)
-    {
+    std::cout << "Necesarios: " << numSectoresNecesarios << " Disponibles: " << numSectoresDisponibles << std::endl;
+    if (numSectoresNecesarios > numSectoresDisponibles) {
         std::cout << "No hay suficientes sectores disponibles para guardar el texto." << std::endl;
         return;
     }
 
     int indiceSector = 0;
-
-    std::map<int,std::string> primero;
-
-    for (int plato = 1; plato <= numPlatos; plato++)
-    {
-        for (int superficie = 1; superficie <= 2; superficie++)
-        {
-            for (int pista = 1; pista <= pistasPorSuperficie; pista++)
-            {
-                for (int sector = 1; sector <= sectoresPorPista; sector++)
-                {
-                    if (indiceSector < numSectoresNecesarios)
-                    {
+    int idBloque = 0;
+    std::vector<int> bloques;
+ 
+    for (int plato = 1; plato <= numPlatos; plato++) {
+        for (int superficie = 1; superficie <= 2; superficie++) {
+            for (int pista = 1; pista <= pistasPorSuperficie; pista++) {
+                for (int sector = 1; sector <= sectoresPorPista; sector++) {
+                    if (indiceSector < numSectoresNecesarios) {
                         std::string archivoSector = "discoDuro/" + std::to_string(plato) + "/" + std::to_string(superficie) + "/" + std::to_string(pista) + "/" + std::to_string(sector) + ".txt";
-                        // std::cout << sectores[indiceSector] << std::endl;
-                        diccionarioDePunteros.insert({,archivoSector})
+                        diccionarioDePunteros.insert({indiceSector+1, archivoSector});
+                        bloques.push_back(idBloque);
+                        if((indiceSector+1)%this->sectoresPorBloque == 0){
+                            idBloque++;
+                        }
+                        
                         guardarEnArchivo(archivoSector, sectores[indiceSector]);
                         indiceSector++;
-                    }
-                    else
-                    {
+                    } else {
+                            // Guardar el diccionario en un archivo
+                        guardarDiccionarioEnArchivo("diccionario.txt", diccionarioDePunteros,ids);
                         return;
                     }
                 }
             }
         }
     }
+
+
+    guardarDiccionarioEnArchivo("diccionario.txt", diccionarioDePunteros,ids);
 
     std::cout << "Archivo Guardado" << std::endl;
 }
@@ -253,11 +249,55 @@ void DiscoDuro::crearArchivo(const std::string &rutaArchivo)
     // Lógica para crear un archivo en el sistema de archivos
 }
 
+void extraerNumeros(const std::string &cadena, std::vector<int> &numeros) {
+    std::regex patron("#(\\d+)|^(\\d+)");
+    std::smatch coincidencias;
+
+    auto inicio = cadena.cbegin();
+    while (std::regex_search(inicio, cadena.cend(), coincidencias, patron)) {
+        if (coincidencias[1].matched) {
+            numeros.push_back(std::stoi(coincidencias[1].str()));
+        } else if (coincidencias[2].matched) {
+            numeros.push_back(std::stoi(coincidencias[2].str()));
+        }
+        inicio = coincidencias.suffix().first;
+    }
+}
+
+
 void DiscoDuro::guardarEnArchivo(const std::string &rutaArchivo, const std::string &contenido)
 {
     std::ofstream archivo(rutaArchivo);
-    archivo << contenido;
-    // std::cout << "Guardado: " << rutaArchivo << std::endl;
+    if (archivo.is_open())
+    {
+        archivo << contenido;
+        archivo.close();
+    }
+    else
+    {
+        std::cout << "Error al guardar en el archivo " << std::endl;
+    }
+}
+
+void DiscoDuro::guardarDiccionarioEnArchivo(const std::string &nombreArchivo, const std::map<int, std::string> &diccionario, std::vector<std::string> bloques) {
+    std::ofstream archivoDiccionario(nombreArchivo);
+    std::cout << "Estoy Aqui." << std::endl;
+    int i = 0;
+    if (archivoDiccionario.is_open()) {
+        for (const auto &entrada : diccionario) {
+        std::vector<int> numeros;
+        std::cout<<bloques[i]<<std::endl;
+        extraerNumeros(bloques[i], numeros);
+
+        for (int num : numeros) {
+            archivoDiccionario << num<< " " << entrada.first <<" "<< entrada.second << "\n";
+        }
+           i++;
+        }
+        archivoDiccionario.close();
+    } else {
+        std::cout << "Error al abrir el archivo de diccionario." << std::endl;
+    }
 }
 
 bool DiscoDuro::leerSector(const std::string &sector, std::string &contenido)
@@ -293,7 +333,7 @@ void DiscoDuro::leerSector()
     int bloqueSector;
     std::cin >> bloqueSector;
 
-    // 1 -> (1*3)-3+1 = 3 -2 
+    // 1 -> (1*3)-3+1 = 3 -2
     // 2 -> (2*3)-3+1 = 6-3+1 = 4
     int contadorSector = 0;
     for (int plato = 1; plato <= numPlatos; plato++)
@@ -307,26 +347,25 @@ void DiscoDuro::leerSector()
                     contadorSector++;
                     if (contadorSector == bloqueSector)
                     {
-                            std::string sectorALeer = "discoDuro/" + std::to_string(plato) + "/" + std::to_string(superficie) + "/" + std::to_string(pista) + "/" + std::to_string(sector) + ".txt";   
-                            std::string contenido;
-                            std::cout<<"Mostrando Sector: "<<bloqueSector<<std::endl;
-                            if (leerSector(sectorALeer, contenido))
-                            {
-                                 std::cout << contenido << std::endl;
-                            }
-                            else
-                            {
-                                std::cout << "No se pudo leer el sector " << std::endl;
-                            }
+                        std::string sectorALeer = "discoDuro/" + std::to_string(plato) + "/" + std::to_string(superficie) + "/" + std::to_string(pista) + "/" + std::to_string(sector) + ".txt";
+                        std::string contenido;
+                        std::cout << "Mostrando Sector: " << bloqueSector << std::endl;
+                        if (leerSector(sectorALeer, contenido))
+                        {
+                            std::cout << contenido << std::endl;
+                        }
+                        else
+                        {
+                            std::cout << "No se pudo leer el sector " << std::endl;
+                        }
                         return;
                     }
                 }
             }
         }
     }
-return;
+    return;
 }
-
 
 int DiscoDuro::buscarId(const std::string &id)
 {
@@ -350,7 +389,7 @@ int DiscoDuro::buscarId(const std::string &id)
                         if (contenido.find(id) != std::string::npos)
                         {
 
-                            std::cout<<"Encontrado en: "<<plato<<"_S: "<<superficie<<" Pista: ";
+                            std::cout << "Encontrado en: " << plato << "_S: " << superficie << " Pista: ";
                             return posicion;
                         }
                     }
@@ -367,7 +406,6 @@ int DiscoDuro::buscarId(const std::string &id)
 
     return -1; // No se encontró el ID en ningún sector
 }
-
 
 DiscoDuro::~DiscoDuro() {}
 

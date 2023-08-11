@@ -7,47 +7,9 @@
 #include <stdio.h>
 #include <map>
 #include <iomanip> // Para std::setw()
-#include "DiscoDuro.h"
+#include "MemoriaFisica/DiscoDuro.h"
+#include "GestorDeRAM/BPlusTree/BTree.h"
 namespace fs = std::filesystem;
-
-void convertir_csv(const std::string &archivo_csv, const std::string &archivo_salida)
-{
-    std::ifstream archivo_entrada(archivo_csv);
-    std::ofstream archivo_salida_stream(archivo_salida); // Cambia el nombre de la variable aquí
-
-    if (archivo_entrada && archivo_salida_stream)
-    {
-        std::string linea;
-
-        while (std::getline(archivo_entrada, linea))
-        {
-            std::stringstream ss(linea);
-            std::string campo;
-            bool primer_campo = true;
-            while (std::getline(ss, campo, ','))
-            {
-
-                if (!primer_campo)
-                {
-                    archivo_salida_stream << "";
-                }
-                else
-                {
-                    primer_campo = false;
-                }
-
-                archivo_salida_stream << campo ;
-            }
-            archivo_salida_stream << std::endl;
-        }
-
-        std::cout << "El archivo ha sido convertido exitosamente." << std::endl;
-    }
-    else
-    {
-        std::cout << "Error al abrir el archivo de entrada o salida." << std::endl;
-    }
-}
 
 const int MAX_ENCABEZADOS = 12; // Máximo número de encabezados permitidos
 
@@ -55,8 +17,8 @@ bool convertir_csv2(const std::string &archivo_csv, const std::string &archivo_s
 {
     std::ifstream archivo_entrada(archivo_csv);
     std::ofstream archivo_salida_stream(archivo_salida, std::ios::binary);
-    std::ofstream esquema_stream("esquema.txt");
-    
+    std::ofstream esquema_stream("esquema.txt", std::ios::app);
+
     if (archivo_entrada && archivo_salida_stream && esquema_stream)
     {
         std::string linea;
@@ -68,33 +30,60 @@ bool convertir_csv2(const std::string &archivo_csv, const std::string &archivo_s
         int tamanos[MAX_ENCABEZADOS] = {0}; // Arreglo para almacenar los tamaños de los encabezados
         int num_encabezados = 0;
 
-        while (std::getline(encabezados_ss, encabezado, ';'))
+        std::cout << "¿Deseas usar un esquema existente? (S/N): ";
+        char respuesta;
+        std::cin >> respuesta;
+
+        if (respuesta == 'S' || respuesta == 's')
         {
-            if (num_encabezados >= MAX_ENCABEZADOS)
+            std::ifstream esquema_entrada("esquema.txt");
+            if (!esquema_entrada)
             {
-                std::cout << "Se ha excedido el número máximo de encabezados permitidos." << std::endl;
+                std::cout << "No se pudo abrir el archivo de esquema existente." << std::endl;
                 return false;
             }
 
-            std::cout << "Ingrese el tipo de dato ('int', 'float', o 'str') para el encabezado '" << encabezado << "': ";
-            std::cin >> tipo_dato;
+            std::string esquema_linea;
+            while (std::getline(esquema_entrada, esquema_linea))
+            {
+                std::istringstream esquema_ss(esquema_linea);
+                std::getline(esquema_ss, encabezado, '#');
+                std::getline(esquema_ss, tipo_dato, '#');
+                esquema_ss >> tamanos[num_encabezados];
 
-            if (tipo_dato == "str")
-            {
-                std::cout << "Ingrese el tamaño en bytes para el encabezado '" << encabezado << "': ";
-                std::cin >> tamanos[num_encabezados];
-            }
-            else
-            {
-                tamanos[num_encabezados] = (tipo_dato == "int" || tipo_dato == "float") ? sizeof(float) : 0;
+                num_encabezados++;
             }
 
-            esquema_stream << encabezado << "#" << tipo_dato << "#" << tamanos[num_encabezados] << std::endl;
-            num_encabezados++;
+            esquema_entrada.close();
+        }
+        else
+        {
+            while (std::getline(encabezados_ss, encabezado, ';'))
+            {
+                if (num_encabezados >= MAX_ENCABEZADOS)
+                {
+                    std::cout << "Se ha excedido el número máximo de encabezados permitidos." << std::endl;
+                    return false;
+                }
+
+                std::cout << "Ingrese el tipo de dato ('int', 'float', o 'str') para el encabezado '" << encabezado << "': ";
+                std::cin >> tipo_dato;
+
+                if (tipo_dato == "str")
+                {
+                    std::cout << "Ingrese el tamaño en bytes para el encabezado '" << encabezado << "': ";
+                    std::cin >> tamanos[num_encabezados];
+                }
+                else
+                {
+                    tamanos[num_encabezados] = (tipo_dato == "int" || tipo_dato == "float") ? sizeof(float) : 0;
+                }
+
+                esquema_stream << encabezado << "#" << tipo_dato << "#" << tamanos[num_encabezados] << std::endl;
+                num_encabezados++;
+            }
         }
 
-        archivo_salida_stream << std::endl;
-        
         while (std::getline(archivo_entrada, linea))
         {
             std::stringstream ss(linea);
@@ -106,7 +95,7 @@ bool convertir_csv2(const std::string &archivo_csv, const std::string &archivo_s
             {
                 if (!primer_campo)
                 {
-                    archivo_salida_stream << "";
+                    archivo_salida_stream << ' '; // Espacio en blanco entre campos
                 }
                 else
                 {
@@ -131,8 +120,16 @@ bool convertir_csv2(const std::string &archivo_csv, const std::string &archivo_s
                 archivo_salida_stream.write(campo_rellenado.c_str(), tamanos[indice]);
                 indice++;
             }
-            archivo_salida_stream << std::endl;
+            archivo_salida_stream << std::endl; // Nueva línea después de cada fila
         }
+
+        int tamaño_total_encabezados = 0;
+        for (int i = 0; i < num_encabezados; ++i)
+        {
+            tamaño_total_encabezados += tamanos[i];
+        }
+
+        std::cout << "Tamaño recomendado para cada sector es : " << tamaño_total_encabezados << " bytes" << std::endl;
 
         std::cout << "El archivo ha sido convertido exitosamente." << std::endl;
         return true;
@@ -180,9 +177,11 @@ void obtener_tamano_registro(const std::string &archivo)
     return;
 }
 
-void obtenerTamañoArchivo(const std::string& rutaArchivo) {
+void obtenerTamañoArchivo(const std::string &rutaArchivo)
+{
     std::ifstream archivo(rutaArchivo, std::ios::binary | std::ios::ate);
-    if (!archivo) {
+    if (!archivo)
+    {
         // Error al abrir el archivo
         return;
     }
@@ -190,19 +189,26 @@ void obtenerTamañoArchivo(const std::string& rutaArchivo) {
     // Obtiene la posición actual del archivo, que es el tamaño en bytes
     std::streampos tamaño = archivo.tellg();
     archivo.close();
-    std::cout<<"El tamaño es: "<<static_cast<long>(tamaño)<<" bytes"<<std::endl;
-    return ;
+    std::cout << "El tamaño es: " << static_cast<long>(tamaño) << " bytes" << std::endl;
+    return;
 }
 
 int main()
 {
 
-/*
-            3 platos
-            2 superficies
-            4 pistas
-            1024 bytes 
-*/ 
+    /*
+                3 platos
+                2 superficies
+                4 pistas
+                1024 bytes
+    */
+
+    /*
+                2 platos
+                2 superficies
+                2 pistas
+                48 bytes
+    */
 
     bool discoCreado = false;
     DiscoDuro disco;
@@ -210,21 +216,34 @@ int main()
     do
     {
         std::cout << "----- MENÚ -----" << std::endl;
-        std::cout << "1. Crear disco" << std::endl;
-        std::cout << "2. Convertir datos de CSV" << std::endl;
+        std::cout << "1. Convertir datos de CSV" << std::endl;
+        std::cout << "2. Crear disco" << std::endl;
         std::cout << "3. Tamaño del archivo" << std::endl;
         std::cout << "4. Guardar texto en sectores" << std::endl;
         std::cout << "5. Leer sectores" << std::endl;
         std::cout << "6. Leer Bloques" << std::endl;
         std::cout << "7. Leer Sector Por Numeracion" << std::endl;
         std::cout << "8. Tamaño del Disco" << std::endl;
-        std::cout << "9. Salir" << std::endl;
+        std::cout << "9. Crear Arbol" << std::endl;
+        std::cout << "10. Salir" << std::endl;
         std::cout << "Elije una opcion: ";
         std::cin >> opcion;
 
         switch (opcion)
         {
         case 1:
+
+        {
+            std::string archivoCSV, archivoSalida;
+            std::cout << "Ingrese el nombre del archivo CSV: ";
+            std::cin >> archivoCSV;
+            std::cout << "Ingrese el nombre del archivo de salida: ";
+            std::cin >> archivoSalida;
+            convertir_csv2(archivoCSV, archivoSalida);
+            break;
+        }
+        case 2:
+        {
             if (!discoCreado)
             {
                 int numPlatos;
@@ -255,22 +274,6 @@ int main()
             else
             {
                 std::cout << "El disco ya ha sido creado anteriormente." << std::endl;
-            }
-            break;
-        case 2:
-        {
-            if (discoCreado)
-            {
-                std::string archivoCSV, archivoSalida;
-                std::cout << "Ingrese el nombre del archivo CSV: ";
-                std::cin >> archivoCSV;
-                std::cout << "Ingrese el nombre del archivo de salida: ";
-                std::cin >> archivoSalida;
-                convertir_csv2(archivoCSV, archivoSalida);
-            }
-            else
-            {
-                std::cout << "Debe crear el disco antes de convertir los datos de CSV." << std::endl;
             }
             break;
         }
@@ -319,7 +322,7 @@ int main()
             if (discoCreado)
             {
                 disco.configurarBloques();
-                //disco.leerBloque();
+                // disco.leerBloque();
             }
             else
             {
@@ -347,6 +350,15 @@ int main()
             }
             break;
         case 9:
+        {
+                BTree arbol;
+                std::string archivoEstructura = "diccionario.txt"; // Cambiar por el nombre de tu archivo
+
+                arbol.cargarArchivoEnArbol(archivoEstructura); // Llama al nuevo método del árbol
+                std::cout<<"Valor Buscado: "<<arbol.search_values(20)<<std::endl;
+            break;
+        }
+        case 10:
             std::cout << "Saliendo del programa..." << std::endl;
             break;
         default:
@@ -355,18 +367,7 @@ int main()
         }
 
         std::cout << std::endl;
-    } while (opcion != 9);
-
-    /*std::string sectoresALeer[] = {
-        "discoDuro/1/1/1/1.txt",
-        "discoDuro/1/1/1/2.txt",
-        "discoDuro/1/1/1/3.txt"};
-    */
-    // disco.leerSectores(sectoresALeer, sizeof(sectoresALeer) / sizeof(sectoresALeer[0]));
-    // disco.leerSectoresDinamico();
-
-    // std::string textoLeido = disco.leerTextoDeSectores();
-    // std::cout << "Texto leído de los sectores: " << textoLeido << std::endl;
+    } while (opcion != 10);
 
     return 0;
 }
