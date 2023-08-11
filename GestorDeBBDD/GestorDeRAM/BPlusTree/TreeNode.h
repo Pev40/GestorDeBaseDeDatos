@@ -16,7 +16,8 @@ public:
 
     std::vector<TreeNode *> children;
     
-    std::vector<std::string> values; // Punteros a los valores (solo en nodos hoja)
+    std::vector<int> values; // Punteros a los valores (solo en nodos hoja)
+    std::vector<std::string> directions;
     TreeNode(bool leaf = true) : is_leaf(leaf)
     {
         if (leaf)

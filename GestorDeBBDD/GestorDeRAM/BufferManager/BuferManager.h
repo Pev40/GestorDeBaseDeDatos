@@ -1,6 +1,6 @@
 #ifndef __BUFFERMANAGER_H__
 #define __BUFFERMANAGERH__
-#include "BufferPool/BufferPool.h"
+#include "BufferPool.cpp"
 #include "BPlusTree/BTree.h"
 class BufferManager {
 private:
@@ -9,7 +9,7 @@ private:
 public:
     BufferManager(int poolSize);
     
-    void cargarPagina(int pageId, std::string filename);
+    void cargarRegistro(int pageId);
     void liberarPagina(int pageId);
     std::string leerPagina(int pageId);
     void escribirPagina(int pageId, std::string contenido);
@@ -21,14 +21,17 @@ private:
 
 BufferManager::BufferManager(int poolSize) : bufferPool(poolSize) {
     BTree arbol;
-    std::string archivoEstructura = "diccionario.txt"; // Cambiar por el nombre de tu archivo
+    std::string archivoEstructura = "../diccionario.txt"; // Cambiar por el nombre de tu archivo
 
     arbol.cargarArchivoEnArbol(archivoEstructura); // Llama al nuevo método del árbol
     tree = arbol;
 }
 
-void BufferManager::cargarPagina(int pageId, std::string filename) {
-
+void BufferManager::cargarPagina(int numeroDelRegistro) {
+    
+    int pageId = tree.search_values_get_idPage(numeroDelRegistro);
+    std::string filename = tree.search_values_get_directPage(numeroDelRegistro);
+    clockAlgorithm();
     bufferPool.cargarPagina(pageId, filename);
 }
 
@@ -46,11 +49,11 @@ void BufferManager::escribirPagina(int pageId, std::string contenido) {
 
 void BufferManager::clockAlgorithm() {
     while (true) {
-        BufferPool::Frame& frame = bufferPool.pool[bufferPool.clockHand];
+        FrameIndividual& frame = bufferPool.pool[bufferPool.clockHand];
         if (!frame.ref_bit) {
-            if (frame.page && frame.page->pin_count == 0) {
-                frame.page->dirty_bit = false;
-                frame.page = nullptr;
+            if (frame.pagina && frame.pagina->pin_count == 0) {
+                frame.pagina->dirty_bit = false;
+                frame.pagina = nullptr;
                 frame.ref_bit = false;
                 return;
             }

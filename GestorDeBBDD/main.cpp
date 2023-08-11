@@ -7,8 +7,10 @@
 #include <stdio.h>
 #include <map>
 #include <iomanip> // Para std::setw()
-#include "MemoriaFisica/DiscoDuro.h"
+#include "GestorDeMemoriaFisica/DiscoDuro.h"
 #include "GestorDeRAM/BPlusTree/BTree.h"
+#include "GestorDeRAM/BuferManager.h"
+
 namespace fs = std::filesystem;
 
 const int MAX_ENCABEZADOS = 12; // Máximo número de encabezados permitidos
@@ -195,13 +197,12 @@ void obtenerTamañoArchivo(const std::string &rutaArchivo)
 
 int main()
 {
-
     /*
-                3 platos
-                2 superficies
-                4 pistas
-                1024 bytes
-    */
+             3 platos
+             2 superficies
+             4 pistas
+             1024 bytes
+ */
 
     /*
                 2 platos
@@ -209,156 +210,241 @@ int main()
                 2 pistas
                 48 bytes
     */
-
     bool discoCreado = false;
     DiscoDuro disco;
-    int opcion;
+    int opcionPrincipal;
     do
     {
-        std::cout << "----- MENÚ -----" << std::endl;
-        std::cout << "1. Convertir datos de CSV" << std::endl;
-        std::cout << "2. Crear disco" << std::endl;
-        std::cout << "3. Tamaño del archivo" << std::endl;
-        std::cout << "4. Guardar texto en sectores" << std::endl;
-        std::cout << "5. Leer sectores" << std::endl;
-        std::cout << "6. Leer Bloques" << std::endl;
-        std::cout << "7. Leer Sector Por Numeracion" << std::endl;
-        std::cout << "8. Tamaño del Disco" << std::endl;
-        std::cout << "9. Crear Arbol" << std::endl;
-        std::cout << "10. Salir" << std::endl;
+        std::cout << "----- PANEL PRINCIPAL -----" << std::endl;
+        std::cout << "1. DiscoDuro" << std::endl;
+        std::cout << "2. Buffer Manager" << std::endl;
+        std::cout << "3. Salir" << std::endl;
         std::cout << "Elije una opcion: ";
-        std::cin >> opcion;
+        std::cin >> opcionPrincipal;
 
-        switch (opcion)
+        switch (opcionPrincipal)
         {
         case 1:
-
         {
-            std::string archivoCSV, archivoSalida;
-            std::cout << "Ingrese el nombre del archivo CSV: ";
-            std::cin >> archivoCSV;
-            std::cout << "Ingrese el nombre del archivo de salida: ";
-            std::cin >> archivoSalida;
-            convertir_csv2(archivoCSV, archivoSalida);
+
+            int opcion;
+            do
+            {
+                std::cout << "----- MENÚ DISCO DURO -----" << std::endl;
+                std::cout << "1. Convertir datos de CSV" << std::endl;
+                std::cout << "2. Crear disco" << std::endl;
+                std::cout << "3. Tamaño del archivo" << std::endl;
+                std::cout << "4. Guardar texto en sectores" << std::endl;
+                std::cout << "5. Leer sectores" << std::endl;
+                std::cout << "6. Leer Bloques" << std::endl;
+                std::cout << "7. Leer Sector Por Numeracion" << std::endl;
+                std::cout << "8. Tamaño del Disco" << std::endl;
+                std::cout << "9. Crear Arbol" << std::endl;
+                std::cout << "10. Eliminar Disco" << std::endl;
+                std::cout << "11. Volver al Panel Principal" << std::endl;
+                std::cout << "Elije una opcion: ";
+                std::cin >> opcion;
+
+                switch (opcion)
+                {
+                case 1:
+
+                {
+                    std::string archivoCSV, archivoSalida;
+                    std::cout << "Ingrese el nombre del archivo CSV: ";
+                    std::cin >> archivoCSV;
+                    std::cout << "Ingrese el nombre del archivo de salida: ";
+                    std::cin >> archivoSalida;
+                    convertir_csv2(archivoCSV, archivoSalida);
+                    break;
+                }
+                case 2:
+                {
+                    if (!discoCreado)
+                    {
+                        int numPlatos;
+                        int pistasPorSuperficie;
+                        int sectoresPorPista;
+                        int bytesPorSector;
+
+                        std::cout << "Ingrese la cantidad de platos: ";
+                        std::cin >> numPlatos;
+
+                        std::cout << "Ingrese la cantidad de pistas por superficie: ";
+                        std::cin >> pistasPorSuperficie;
+
+                        std::cout << "Ingrese la cantidad de sectores por pista: ";
+                        std::cin >> sectoresPorPista;
+
+                        std::cout << "Ingrese la cantidad de bytes por sector: ";
+                        std::cin >> bytesPorSector;
+
+                        disco.setnumPlatos(numPlatos);
+                        disco.setpistasPorSuperficie(pistasPorSuperficie);
+                        disco.setsectoresPorPista(sectoresPorPista);
+                        disco.setbytesPorSector(bytesPorSector);
+                        disco.crearEstructuraDisco();
+                        discoCreado = true;
+                        fs::remove("diccionario.txt");
+                        std::cout << "Disco creado exitosamente." << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "El disco ya ha sido creado anteriormente." << std::endl;
+                    }
+                    break;
+                }
+                case 3:
+                {
+                    if (discoCreado)
+                    {
+                        std::string archivoleer;
+                        std::cout << "Ingrese el nombre a leer: ";
+                        std::cin >> archivoleer;
+                        obtenerTamañoArchivo(archivoleer);
+                    }
+                    else
+                    {
+                        std::cout << "Debe crear el disco antes de convertir los datos de CSV." << std::endl;
+                    }
+                    break;
+                }
+                case 4:
+                {
+                    if (discoCreado)
+                    {
+                        std::string archivoTxt;
+                        std::cout << "Ingrese el nombre del archivo de texto: ";
+                        std::cin >> archivoTxt;
+                        disco.guardarTextoEnSectores(archivoTxt);
+                    }
+                    else
+                    {
+                        std::cout << "Debe crear el disco antes de guardar el archivo." << std::endl;
+                    }
+                    break;
+                }
+                case 5:
+                    if (discoCreado)
+                    {
+                        disco.leerSectoresDinamico();
+                    }
+                    else
+                    {
+                        std::cout << "Debe crear el disco antes de leer los sectores." << std::endl;
+                    }
+                    break;
+
+                case 6:
+                    if (discoCreado)
+                    {
+                        // disco.configurarBloques();
+                        //  disco.leerBloque();
+                    }
+                    else
+                    {
+                        std::cout << "Debe crear el disco antes de leer los sectores." << std::endl;
+                    }
+                    break;
+                case 7:
+                    if (discoCreado)
+                    {
+                        disco.leerSector();
+                    }
+                    else
+                    {
+                        std::cout << "Debe crear el disco antes de leer los sectores." << std::endl;
+                    }
+                    break;
+                case 8:
+                    if (discoCreado)
+                    {
+                        disco.capacidadDisco();
+                    }
+                    else
+                    {
+                        std::cout << "Debe crear el disco antes de leer los sectores." << std::endl;
+                    }
+                    break;
+                case 9:
+                {
+                    BTree arbol;
+                    std::string archivoEstructura = "diccionario.txt"; // Cambiar por el nombre de tu archivo
+
+                    arbol.cargarArchivoEnArbol(archivoEstructura); // Llama al nuevo método del árbol
+                    std::cout << "Valor Buscado: " << arbol.search_values_get_idPage(20) << std::endl;
+                    std::cout << "Valor Buscado: " << arbol.search_values_get_directPage(20) << std::endl;
+                    break;
+                }
+                case 10:
+                {
+                    disco.~DiscoDuro();
+                    discoCreado = false;
+                    break;
+                }
+                case 11:
+                    std::cout << "Saliendo del programa..." << std::endl;
+                    break;
+                default:
+                    std::cout << "Opción inválida. Intente nuevamente." << std::endl;
+                    break;
+                }
+
+                std::cout << std::endl;
+            } while (opcion != 11);
             break;
         }
         case 2:
         {
-            if (!discoCreado)
+
+            int cantidadDeFrames;
+
+            std::cout << "Ingrese la cantidad de frames: ";
+            std::cin >> cantidadDeFrames;
+            BufferManager buffer(cantidadDeFrames, disco);
+
+            int opcion;
+            do
             {
-                int numPlatos;
-                int pistasPorSuperficie;
-                int sectoresPorPista;
-                int bytesPorSector;
+                std::cout << "----- MENÚ -----" << std::endl;
+                std::cout << "1. Cargar registro" << std::endl;
+                std::cout << "2. Liberar página" << std::endl;
+                std::cout << "3. Leer página" << std::endl;
+                std::cout << "4. Escribir página" << std::endl;
+                std::cout << "5. Salir" << std::endl;
+                std::cout << "Elije una opción: ";
+                std::cin >> opcion;
 
-                std::cout << "Ingrese la cantidad de platos: ";
-                std::cin >> numPlatos;
+                switch (opcion)
+                {
+                case 1:
+                    int idRegistro;
+                    std::cout << "Ingrese el ID del registro: ";
+                    std::cin >> idRegistro;
+                    buffer.cargarRegistro(idRegistro);
+                    break;
+                case 2:
+                    // Código para liberar página
+                    break;
+                case 3:
+                    // Código para leer página
+                    break;
+                case 4:
+                    // Código para escribir página
+                    break;
+                case 5:
+                    std::cout << "Saliendo del programa..." << std::endl;
+                    break;
+                default:
+                    std::cout << "Opción inválida. Intente nuevamente." << std::endl;
+                    break;
+                }
 
-                std::cout << "Ingrese la cantidad de pistas por superficie: ";
-                std::cin >> pistasPorSuperficie;
-
-                std::cout << "Ingrese la cantidad de sectores por pista: ";
-                std::cin >> sectoresPorPista;
-
-                std::cout << "Ingrese la cantidad de bytes por sector: ";
-                std::cin >> bytesPorSector;
-
-                disco.setnumPlatos(numPlatos);
-                disco.setpistasPorSuperficie(pistasPorSuperficie);
-                disco.setsectoresPorPista(sectoresPorPista);
-                disco.setbytesPorSector(bytesPorSector);
-                disco.crearEstructuraDisco();
-                discoCreado = true;
-                std::cout << "Disco creado exitosamente." << std::endl;
-            }
-            else
-            {
-                std::cout << "El disco ya ha sido creado anteriormente." << std::endl;
-            }
+                std::cout << std::endl;
+            } while (opcion != 5);
             break;
         }
         case 3:
-        {
-            if (discoCreado)
-            {
-                std::string archivoleer;
-                std::cout << "Ingrese el nombre a leer: ";
-                std::cin >> archivoleer;
-                obtenerTamañoArchivo(archivoleer);
-            }
-            else
-            {
-                std::cout << "Debe crear el disco antes de convertir los datos de CSV." << std::endl;
-            }
-            break;
-        }
-        case 4:
-        {
-            if (discoCreado)
-            {
-                std::string archivoTxt;
-                std::cout << "Ingrese el nombre del archivo de texto: ";
-                std::cin >> archivoTxt;
-                disco.guardarTextoEnSectores(archivoTxt);
-            }
-            else
-            {
-                std::cout << "Debe crear el disco antes de guardar el archivo." << std::endl;
-            }
-            break;
-        }
-        case 5:
-            if (discoCreado)
-            {
-                disco.leerSectoresDinamico();
-            }
-            else
-            {
-                std::cout << "Debe crear el disco antes de leer los sectores." << std::endl;
-            }
-            break;
-
-        case 6:
-            if (discoCreado)
-            {
-                disco.configurarBloques();
-                // disco.leerBloque();
-            }
-            else
-            {
-                std::cout << "Debe crear el disco antes de leer los sectores." << std::endl;
-            }
-            break;
-        case 7:
-            if (discoCreado)
-            {
-                disco.leerSector();
-            }
-            else
-            {
-                std::cout << "Debe crear el disco antes de leer los sectores." << std::endl;
-            }
-            break;
-        case 8:
-            if (discoCreado)
-            {
-                disco.capacidadDisco();
-            }
-            else
-            {
-                std::cout << "Debe crear el disco antes de leer los sectores." << std::endl;
-            }
-            break;
-        case 9:
-        {
-                BTree arbol;
-                std::string archivoEstructura = "diccionario.txt"; // Cambiar por el nombre de tu archivo
-
-                arbol.cargarArchivoEnArbol(archivoEstructura); // Llama al nuevo método del árbol
-                std::cout<<"Valor Buscado: "<<arbol.search_values(20)<<std::endl;
-            break;
-        }
-        case 10:
             std::cout << "Saliendo del programa..." << std::endl;
             break;
         default:
@@ -367,7 +453,7 @@ int main()
         }
 
         std::cout << std::endl;
-    } while (opcion != 10);
+    } while (opcionPrincipal != 3);
 
     return 0;
 }
